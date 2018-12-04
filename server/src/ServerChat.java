@@ -8,9 +8,9 @@ public class ServerChat implements TCPConnectionListener{
         new ServerChat();
     }
 
-    private final ArrayList<TCPConnection> connectionsList;
+    private  ArrayList<TCPConnection> connectionsList;
     private final ServerSocket serverSocket;
-    private final int PORT = 8189;
+    private final int PORT = 8190;
 
     private ServerChat() throws IOException {
         serverSocket = new ServerSocket(PORT);
@@ -37,11 +37,14 @@ public class ServerChat implements TCPConnectionListener{
 
     @Override
     public synchronized void OnRecieveMessage(TCPConnection tcpConnection, String msg) {
+        if(msg!=null)
             sendMsgAll(msg);
+        else connectionsList.remove(tcpConnection);
     }
 
     @Override
     public synchronized void OnException(TCPConnection tcpConnection, Exception e) {
+       //connectionsList.remove(tcpConnection);
         System.out.println("Huston we have a problem with " + tcpConnection + " Error: " + e);
     }
 

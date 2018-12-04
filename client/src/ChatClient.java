@@ -1,6 +1,9 @@
 import javafx.application.Application;
 import javafx.application.Platform;
+import javafx.concurrent.Task;
+import javafx.scene.PointLight;
 import javafx.scene.Scene;
+import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.control.TextField;
@@ -15,11 +18,12 @@ public class ChatClient extends Application implements TCPConnectionListener{
     private TextField fieldNick, fieldInput;
     private TextArea log;
     private Label connectionStatusLabel;
+    private Button reconnect;
     private double width;
     private double height;
     private TCPConnection tcpConnection;
     private final String IPAdress = "127.0.0.1";
-    private final int PORT = 8189;
+    private final int PORT = 8190;
     private boolean connectionStarted;
 
     public static void main(String[] args) {
@@ -27,14 +31,44 @@ public class ChatClient extends Application implements TCPConnectionListener{
 
     }
 
+
+
+    private synchronized void printMsg(String value) {
+        Platform.runLater(()->{
+            log.appendText(value + "\n");
+        });
+    }
+
+    private void startConnection(){
+        try {
+            tcpConnection = new TCPConnection(IPAdress, PORT, this);
+        } catch (IOException e) {
+            setConnectionLabelText("Ошибка подключения: " + e.getMessage());
+        };
+    }
+
+    private void restartConnection(){
+        try {
+            tcpConnection.closeConnection();
+        } catch (IOException e) {
+            setConnectionLabelText("Не удалось закрыть сокет: " + e.getMessage());
+        }finally {
+            startConnection();
+        }
+    }
+
+    private void setConnectionLabelText(String text) {
+        Platform.runLater(() -> {
+            connectionStatusLabel.setText(text);
+        });
+    }
+
+    /*
+           Override methods
+     */
     @Override
     public void start(Stage primaryStage) throws Exception {
-        Platform.runLater( () -> {
-            try {
-                tcpConnection = new TCPConnection(IPAdress,PORT,ChatClient.this);
-            }catch (IOException e){
-            }
-        });
+
 
         width = 600.00;
         height = 400.00;
@@ -46,10 +80,15 @@ public class ChatClient extends Application implements TCPConnectionListener{
 
 
         connectionStatusLabel = new Label("Оффлайн");
+
+
+        reconnect = new Button("Переподключиться");
+
+
         fieldNick = new TextField();
         fieldNick.setPromptText("Введите Ваш ник");
         HBox hBox = new HBox(10);
-        hBox.getChildren().addAll(fieldNick, connectionStatusLabel);
+        hBox.getChildren().addAll(fieldNick, connectionStatusLabel,reconnect);
 
         log = new TextArea();
         log.setEditable(false);
@@ -61,13 +100,22 @@ public class ChatClient extends Application implements TCPConnectionListener{
         fieldInput.setOnAction(event -> {
             String nick = fieldNick.getText();
             if(nick.equals("")){
-                fieldNick.setFocusTraversable(true);
+                fieldNick.requestFocus();
                 return;
             }
             tcpConnection.SendMsg(nick + " пишет: " + fieldInput.getText());
+            fieldInput.clear();
+        });
+
+        reconnect.setOnAction((e) ->{
+            restartConnection();
         });
 
         primaryStage.show();
+        startConnection();
+
+
+
 
 
 
@@ -75,22 +123,22 @@ public class ChatClient extends Application implements TCPConnectionListener{
 
     @Override
     public void OnConnection(TCPConnection tcpConnection) {
-        connectionStatusLabel.setText("Онлайн");
+        setConnectionLabelText("Онлайн");
     }
 
     @Override
     public void OnDisconnection(TCPConnection tcpConnection) {
-        connectionStatusLabel.setText("Оффлайн");
+        setConnectionLabelText("Оффлайн");
     }
 
     @Override
     public void OnRecieveMessage(TCPConnection tcpConnection, String msg) {
-            log.appendText(msg + "\n");
+        printMsg(msg);
     }
 
     @Override
     public void OnException(TCPConnection tcpConnection, Exception e) {
-        log.appendText("Problem with " + tcpConnection + " err - " + e);
+        printMsg("Не удалось получить/передать сообщение в " + tcpConnection + " err - " + e.getMessage());
     }
 
 }
